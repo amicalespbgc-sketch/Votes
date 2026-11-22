@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vote assemblée</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#f2f4f7; margin:0; padding:16px; color:#222; }
+  .carte { background:#fff; max-width:480px; margin:16px auto; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.1); }
+  h1 { font-size:20px; margin-top:0; }
+  h2 { font-size:17px; }
+  button { display:block; width:100%; padding:14px; margin:8px 0; font-size:16px; border:none; border-radius:8px; background:#1a73e8; color:#fff; cursor:pointer; }
+  button:disabled { background:#aaa; }
+  .erreur { color:#b00020; font-weight:bold; }
+  .ok { color:#1b7f3b; font-weight:bold; }
+  .fait { color:#666; font-style:italic; }
+</style>
+</head>
+<body>
+<div class="carte">
+  <h1>Vote assemblée</h1>
+  <div id="contenu">Chargement…</div>
+</div>
+
+<script>
+const URL_API = "https://script.google.com/macros/s/AKfycbx-29tlNDvhF_McjxuCwuYFvypqRdMkE8AEXJsmOwV4Xytn5UAjHQoNxYeW_j8owWBX2A/exec";
+const token = new URLSearchParams(location.search).get("t") || "";
+const zone = document.getElementById("contenu");
+
+async function appel(params) {
+  const url = URL_API + "?" + new URLSearchParams(params).toString();
+  const rep = await fetch(url);
+  return await rep.json();
+}
+
+function echapper(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function charger() {
+  if (!token) { zone.innerHTML = '<p class="erreur">Lien invalide : scannez votre QR code.</p>'; return; }
+  try {
+    const data = await appel({ action: "contexte", t: token });
+    if (data.erreur) { zone.innerHTML = '<p class="erreur">' + echapper(data.erreur) + '</p>'; return; }
+    let html = "<p>Bonjour <b>" + echapper(data.nom) + "</b></p>";
+    if (!data.scrutins.length) {
+      html += "<p>Aucun scrutin ouvert pour le moment.</p><button onclick='charger()'>Actualiser</button>";
+    }
+    data.scrutins.forEach(function (s) {
+      html += "<hr><h2>" + echapper(s.question) + "</h2>";
+      if (s.dejaVote) {
+        html += '<p class="fait">Vous avez déjà voté pour ce scrutin.</p>';
+      } else {
+        s.options.forEach(function (o) {
+          html += "<button onclick=\"voter('" + s.id + "', this.dataset.c, this)\" data-c=\"" + echapper(o).replace(/"/g, """) + "\">" + echapper(o) + "</button>";
+        });
+      }
+    });
+    if (data.scrutins.length) html += "<hr><button style='background:#666' onclick='charger()'>Actualiser</button>";
+    zone.innerHTML = html;
+  } catch (e) {
+    zone.innerHTML = '<p class="erreur">Erreur de connexion : ' + echapper(e.message) + "</p>";
+  }
+}
+
+async function voter(idScrutin, choix, bouton) {
+  if (!confirm("Confirmer votre vote : " + choix + " ?")) return;
+  document.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+  try {
+    const rep = await appel({ action: "voter", t: token, s: idScrutin, c: choix });
+    if (rep.erreur) { alert(rep.erreur); }
+    else { alert(rep.message || "Vote enregistré."); }
+  } catch (e) {
+    alert("Erreur de connexion : " + e.message);
+  }
+  charger();
+}
+
+charger();
+</script>
+</body>
+</html>
