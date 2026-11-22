@@ -54,7 +54,8 @@ async function charger() {
         html += '<p class="fait">Vous avez déjà voté pour ce scrutin.</p>';
       } else {
         s.options.forEach(function (o) {
-          html += "<button onclick=\"voter('" + s.id + "', this.dataset.c, this)\" data-c=\"" + echapper(o).replace(/"/g, """) + "\">" + echapper(o) + "</button>";
+          html += "<button onclick=\"voter('" + s.id + "', this.dataset.c, this)\" data-c=\"" +
+            echapper(o).split('"').join('&#34;') + "\">" + echapper(o) + "</button>";
         });
       }
     });
